@@ -799,29 +799,44 @@ function PriorityView({ gidMap = {} }) {
 }
 
 function PMPerformanceDashboard() {
-  // Live tasks state — fetched from Asana API on mount
-  const [tasks, setTasks]         = React.useState([]);
-  const [loading, setLoading]     = React.useState(true);
+  // Live tasks state — fetched from Asana API on mount + auto-refresh
+  const [tasks, setTasks]           = React.useState([]);
+  const [loading, setLoading]       = React.useState(true);
+  const [syncing, setSyncing]       = React.useState(false);
   const [fetchError, setFetchError] = React.useState(null);
   const [lastSynced, setLastSynced] = React.useState(null);
+  const [syncedSections, setSyncedSections] = React.useState([]);
 
-  React.useEffect(() => {
-    const load = () => {
-      setLoading(true);
-      fetch('/api/tasks')
-        .then(r => { if (!r.ok) throw new Error(`API error ${r.status}`); return r.json(); })
-        .then(data => {
-          setTasks(data);
-          setLastSynced(new Date().toLocaleTimeString());
-          setLoading(false);
-        })
-        .catch(err => {
-          setFetchError(err.message);
-          setLoading(false);
-        });
-    };
-    load();
+  const syncTasks = React.useCallback((isBackground = false) => {
+    if (!isBackground) setSyncing(true);
+    else setLoading(true);
+    setFetchError(null);
+    fetch('/api/tasks')
+      .then(r => { if (!r.ok) throw new Error(`Sync failed (${r.status})`); return r.json(); })
+      .then(data => {
+        // API returns { tasks, syncedAt, totalSections }
+        const taskList = Array.isArray(data) ? data : (data.tasks || []);
+        setTasks(taskList);
+        setSyncedSections(data.totalSections || []);
+        setLastSynced(new Date().toLocaleTimeString());
+        setSyncing(false);
+        setLoading(false);
+      })
+      .catch(err => {
+        setFetchError(err.message);
+        setSyncing(false);
+        setLoading(false);
+      });
   }, []);
+
+  // Initial load
+  React.useEffect(() => { syncTasks(true); }, []);
+
+  // Auto-refresh every 30 minutes
+  React.useEffect(() => {
+    const interval = setInterval(() => syncTasks(false), 30 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [syncTasks]);
 
   // Live ASANA_GID_MAP derived from tasks state
   const ASANA_GID_MAP = React.useMemo(
@@ -942,9 +957,27 @@ function PMPerformanceDashboard() {
           <div>
             <h1 className="text-3xl font-bold text-slate-900">PM Performance</h1>
             <p className="text-sm text-slate-500 mt-1 flex items-center gap-2">
-              <Zap size={14} className="text-amber-500" /> Live · 100+ tasks
+              <Zap size={14} className="text-amber-500" />
+              Live · {tasks.length} tasks · {syncedSections.length} sections
             </p>
+            {lastSynced && (
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                Last synced: {lastSynced} · Auto-refreshes every 30 min
+              </p>
+            )}
           </div>
+          <button
+            onClick={() => syncTasks(false)}
+            disabled={syncing}
+            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl border transition ${
+              syncing
+                ? 'bg-indigo-50 border-indigo-200 text-indigo-600 cursor-not-allowed'
+                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300'
+            }`}
+          >
+            <RefreshCw size={14} className={syncing ? 'animate-spin' : ''} />
+            {syncing ? 'Syncing Asana...' : '🔄 Sync Asana'}
+          </button>
         </div>
 
         {/* ── Live Performance Scoreboard ─────────────────────────────────── */}
