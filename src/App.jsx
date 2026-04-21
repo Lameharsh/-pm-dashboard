@@ -42,8 +42,9 @@ const GOLD_PRIORITY = [
   { gid: "1211595440974177", name: "Auto-Cancellation Logic for Customer Sales Return upon Primary Sales Return Cancellation",                            cstRank: 23, status: "Not Taken Up",              client: "Too Yumm",      csm: "Vishesh Malik", source: "Gold", asana_url: "https://app.asana.com/1/34125054317482/project/1205967140453121/task/1211595440974177" },
 ];
 
-// Lookup map: GID → Asana task (for cross-referencing priority sheet tasks)
-const ASANA_GID_MAP = Object.fromEntries(tasks.map(t => [t.gid, t]));
+// Lookup map: GID → Asana task — built dynamically inside PMPerformanceDashboard
+// from live tasks state (see useMemo inside the component)
+let ASANA_GID_MAP = {};
 
 // Urgency labels used for filter toggles (not sections)
 const URGENCY_SECTIONS = ["🔴 Overdue", "🟡 Due Today", "⏰ Stale (3d+)"];
@@ -715,7 +716,9 @@ function TaskRow({ task, expanded, onToggle, sourceSection }) {
 // ---------------------------------------------------------------------------
 // CST Priority View — shows Platinum + Gold sprint tasks matched to Asana data
 // ---------------------------------------------------------------------------
-function PriorityView() {
+function PriorityView({ gidMap = {} }) {
+  // Use passed gidMap instead of module-level ASANA_GID_MAP
+  const ASANA_GID_MAP = gidMap;
   const statusColor = (s = '') => {
     if (/taken up/i.test(s))   return 'bg-emerald-50 text-emerald-700 border-emerald-200';
     if (/testing|release/i.test(s)) return 'bg-blue-50 text-blue-700 border-blue-200';
@@ -1182,7 +1185,7 @@ function PMPerformanceDashboard() {
 
         {/* ── Conditional rendering: Priority / Urgency filter / Standard Kanban ── */}
         {activeTab === 'priority' ? (
-          <PriorityView />
+          <PriorityView gidMap={ASANA_GID_MAP} />
         ) : urgencyFilters.length > 0 ? (
           /* Urgency cross-section view */
           <div>
