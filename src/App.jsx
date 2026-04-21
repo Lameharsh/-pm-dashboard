@@ -1252,38 +1252,61 @@ function PMPerformanceDashboard() {
           /* Standard Kanban section tab bar */
           <>
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm mb-4 overflow-hidden">
-              <div className="flex overflow-x-auto scrollbar-hide border-b border-slate-100">
-                {SECTION_ORDER.map(section => {
-                  const sectionTasks = tasksBySection[section] || [];
-                  const meta = SECTION_META[section] || { emoji: "📋" };
-                  const isActive = activeSection === section;
-                  const overdueCount = sectionTasks.filter(t => isOverdue(t.due_on)).length;
-                  const dueTodaySectionCount = sectionTasks.filter(t => isDueToday(t.due_on)).length;
-                  return (
-                    <button
-                      key={section}
-                      onClick={() => { setActiveSection(section); setExpandedTask(null); }}
-                      className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 transition whitespace-nowrap
-                        ${isActive
-                          ? 'border-indigo-500 text-indigo-700 bg-indigo-50/50'
-                          : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                        }`}
-                    >
-                      <span>{meta.emoji}</span>
-                      <span>{section}</span>
-                      <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-full ml-0.5
-                        ${isActive ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-500'}`}>
-                        {sectionTasks.length}
-                      </span>
-                      {overdueCount > 0 && (
-                        <span className="text-[10px] font-medium bg-rose-50 text-rose-500 px-1 py-0.5 rounded-full">⚠{overdueCount}</span>
-                      )}
-                      {dueTodaySectionCount > 0 && !overdueCount && (
-                        <span className="text-[10px] font-medium bg-amber-50 text-amber-500 px-1 py-0.5 rounded-full">📅</span>
-                      )}
-                    </button>
-                  );
-                })}
+              {/* Tab bar with scroll arrows */}
+              <div className="relative border-b border-slate-100">
+                <button
+                  onClick={() => {
+                    const el = document.getElementById('section-tab-scroll');
+                    if (el) el.scrollBy({ left: -220, behavior: 'smooth' });
+                  }}
+                  className="absolute left-0 top-0 bottom-0 z-10 px-2 bg-gradient-to-r from-white via-white to-transparent flex items-center text-slate-400 hover:text-slate-700 transition"
+                  aria-label="Scroll tabs left"
+                >
+                  <ChevronRight size={16} className="rotate-180" />
+                </button>
+                <div id="section-tab-scroll" className="flex overflow-x-auto scrollbar-hide pl-7 pr-7">
+                  {SECTION_ORDER.map(section => {
+                    const sectionTasks = tasksBySection[section] || [];
+                    const meta = SECTION_META[section] || { emoji: "📋" };
+                    const isActive = activeSection === section;
+                    const overdueCount = sectionTasks.filter(t => isOverdue(t.due_on)).length;
+                    const dueTodaySectionCount = sectionTasks.filter(t => isDueToday(t.due_on)).length;
+                    return (
+                      <button
+                        key={section}
+                        onClick={() => { setActiveSection(section); setExpandedTask(null); }}
+                        className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 transition whitespace-nowrap
+                          ${isActive
+                            ? 'border-indigo-500 text-indigo-700 bg-indigo-50/50'
+                            : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                          }`}
+                      >
+                        <span>{meta.emoji}</span>
+                        <span>{section}</span>
+                        <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-full ml-0.5
+                          ${isActive ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-500'}`}>
+                          {sectionTasks.length}
+                        </span>
+                        {overdueCount > 0 && (
+                          <span className="text-[10px] font-medium bg-rose-50 text-rose-500 px-1 py-0.5 rounded-full">⚠{overdueCount}</span>
+                        )}
+                        {dueTodaySectionCount > 0 && !overdueCount && (
+                          <span className="text-[10px] font-medium bg-amber-50 text-amber-500 px-1 py-0.5 rounded-full">📅</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+                <button
+                  onClick={() => {
+                    const el = document.getElementById('section-tab-scroll');
+                    if (el) el.scrollBy({ left: 220, behavior: 'smooth' });
+                  }}
+                  className="absolute right-0 top-0 bottom-0 z-10 px-2 bg-gradient-to-l from-white via-white to-transparent flex items-center text-slate-400 hover:text-slate-700 transition"
+                  aria-label="Scroll tabs right"
+                >
+                  <ChevronRight size={16} />
+                </button>
               </div>
 
               {/* Active section description */}
@@ -1307,23 +1330,25 @@ function PMPerformanceDashboard() {
               })()}
             </div>
 
-            {/* Tasks for active section */}
-            <div className="space-y-2">
-              {(tasksBySection[activeSection] || []).length === 0 ? (
-                <div className="bg-white rounded-xl border border-slate-200 p-12 text-center text-slate-400 text-sm">
-                  No tasks in this section.
-                </div>
-              ) : (
-                (tasksBySection[activeSection] || []).map(task => (
-                  <TaskRow
-                    key={task.gid}
-                    task={task}
-                    expanded={expandedTask === task.gid}
-                    onToggle={() => setExpandedTask(expandedTask === task.gid ? null : task.gid)}
-                    sourceSection={task.section || 'Recently assigned'}
-                  />
-                ))
-              )}
+            {/* Tasks for active section — scrollable container */}
+            <div className="overflow-y-auto pr-1" style={{ maxHeight: 'calc(100vh - 380px)', minHeight: '200px' }}>
+              <div className="space-y-2">
+                {(tasksBySection[activeSection] || []).length === 0 ? (
+                  <div className="bg-white rounded-xl border border-slate-200 p-12 text-center text-slate-400 text-sm">
+                    No tasks in this section.
+                  </div>
+                ) : (
+                  (tasksBySection[activeSection] || []).map(task => (
+                    <TaskRow
+                      key={task.gid}
+                      task={task}
+                      expanded={expandedTask === task.gid}
+                      onToggle={() => setExpandedTask(expandedTask === task.gid ? null : task.gid)}
+                      sourceSection={task.section || 'Recently assigned'}
+                    />
+                  ))
+                )}
+              </div>
             </div>
           </>
         )}
